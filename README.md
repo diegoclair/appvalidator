@@ -119,7 +119,7 @@ The [`apperrmap`](./apperrmap) sub-package converts validation results into [`ap
 import "github.com/diegoclair/appvalidator/apperrmap"
 
 // Option 1 — wrap the validator (recommended)
-v, _ := apperrmap.New()
+v, _ := apperrmap.NewValidator()
 err := v.ValidateStruct(ctx, dto) // err is apperr-compatible on failure
 
 // Option 2 — convert on the way out
@@ -175,7 +175,7 @@ appvalidator (core — zero apperr dependency)
 
 apperrmap/ (sub-package — opt-in apperr bridge)
 ├── ToAppErr(err)       *ValidationError → apperr.ErrValidation + meta
-├── New()               returns Validator that already converts on failure
+├── NewValidator()      returns Validator that already converts on failure
 └── Wrap(inner)         wraps an existing appvalidator.Validator
 ```
 

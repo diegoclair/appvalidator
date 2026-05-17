@@ -13,7 +13,7 @@
 //  2. Use the wrapping constructor so every ValidateStruct call already
 //     returns an apperr-compatible error:
 //
-//     v, _ := apperrmap.New()
+//     v, _ := apperrmap.NewValidator()
 //     err := v.ValidateStruct(ctx, dto) // err is *apperr.Error on failure
 package apperrmap
 
@@ -61,9 +61,9 @@ type wrapped struct {
 	inner appvalidator.Validator
 }
 
-// New returns a Validator that wraps appvalidator.New and converts
+// NewValidator returns a Validator that wraps appvalidator.New and converts
 // validation failures to apperr.Error transparently.
-func New() (Validator, error) {
+func NewValidator() (Validator, error) {
 	inner, err := appvalidator.New()
 	if err != nil {
 		return nil, err

@@ -63,8 +63,8 @@ func TestToAppErr_FindsWrappedValidationError(t *testing.T) {
 	assert.True(t, errors.Is(got, apperr.ErrValidation))
 }
 
-func TestNew_ValidateStructReturnsAppErr(t *testing.T) {
-	v, err := apperrmap.New()
+func TestNewValidator_ValidateStructReturnsAppErr(t *testing.T) {
+	v, err := apperrmap.NewValidator()
 	require.NoError(t, err)
 
 	data := struct {
@@ -81,8 +81,8 @@ func TestNew_ValidateStructReturnsAppErr(t *testing.T) {
 	assert.Equal(t, apperr.KindValidation, ae.Kind())
 }
 
-func TestNew_ValidStructReturnsNil(t *testing.T) {
-	v, err := apperrmap.New()
+func TestNewValidator_ValidStructReturnsNil(t *testing.T) {
+	v, err := apperrmap.NewValidator()
 	require.NoError(t, err)
 
 	data := struct {
