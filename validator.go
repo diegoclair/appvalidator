@@ -52,11 +52,22 @@ func New() (Validator, error) {
 		validator: validator.New(validator.WithRequiredStructEnabled()),
 	}
 
+	v.validator.RegisterTagNameFunc(jsonTagName)
+
 	if err := v.registerCustomValidations(); err != nil {
 		return nil, err
 	}
 
 	return v, nil
+}
+
+func jsonTagName(fld reflect.StructField) string {
+	name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+	// "-" must fall back to the Go name rather than hide the field from the caller.
+	if name == "-" {
+		return ""
+	}
+	return name
 }
 
 func (v *validatorImpl) ValidateStruct(ctx context.Context, dataSet any) error {
@@ -78,10 +89,11 @@ func (v *validatorImpl) ValidateStruct(ctx context.Context, dataSet any) error {
 	fields := make([]FieldError, 0, len(verrs))
 	for _, fe := range verrs {
 		fields = append(fields, FieldError{
-			Field:   fe.StructField(),
-			Tag:     fe.Tag(),
-			Param:   fe.Param(),
-			Message: buildMessage(fe.StructField(), fe.Tag(), fe.Param()),
+			Field:       fe.Field(),
+			StructField: fe.StructField(),
+			Tag:         fe.Tag(),
+			Param:       fe.Param(),
+			Message:     buildMessage(fe.Field(), fe.Tag(), fe.Param()),
 		})
 	}
 

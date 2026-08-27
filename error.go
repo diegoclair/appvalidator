@@ -10,16 +10,14 @@ type ValidationError struct {
 	Fields []FieldError
 }
 
-// FieldError describes a single validation failure.
-//   - Field is the struct field name (e.g. "Email").
-//   - Tag is the validator tag that failed (e.g. "required", "cpf", "min").
-//   - Param is the tag parameter when present (e.g. "8" for min=8); empty otherwise.
-//   - Message is a human-readable description, ready for display or logging.
+// FieldError describes a single validation failure. Field is the name the field
+// is known by outside the process; StructField is the Go name.
 type FieldError struct {
-	Field   string `json:"field"`
-	Tag     string `json:"tag"`
-	Param   string `json:"param,omitempty"`
-	Message string `json:"message"`
+	Field       string `json:"field"`
+	StructField string `json:"struct_field"`
+	Tag         string `json:"tag"`
+	Param       string `json:"param,omitempty"`
+	Message     string `json:"message"`
 }
 
 // Error joins all field messages with "; " so the error is useful as a

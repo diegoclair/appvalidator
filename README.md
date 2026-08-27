@@ -43,13 +43,13 @@ func (s *userService) Signup(ctx context.Context, dto SignupDTO) error {
 
 ### How
 
-With `appvalidator`, you get a typed `*ValidationError` with per-field details (`Field`, `Tag`, `Param`, `Message`). The transport layer decides how to render it — HTTP, gRPC, GraphQL:
+With `appvalidator`, you get a typed `*ValidationError` with per-field details (`Field`, `StructField`, `Tag`, `Param`, `Message`). The transport layer decides how to render it — HTTP, gRPC, GraphQL:
 
 ```go
 func (s *userService) Signup(ctx context.Context, dto SignupDTO) error {
     if err := s.validator.ValidateStruct(ctx, dto); err != nil {
         return err                                       // ✅ structured *ValidationError
-    }                                                    // ✅ per-field {Field, Tag, Param, Message}
+    }                                                    // ✅ per-field {Field, StructField, Tag, Param, Message}
     // ...                                               // ✅ custom tags (cpf, cnpj, required_trim) built-in
 }                                                        // ✅ transport-agnostic — no net/http import
 ```
@@ -101,15 +101,20 @@ All standard `go-playground/validator` tags work too — `required`, `email`, `m
 var ve *appvalidator.ValidationError
 if errors.As(err, &ve) {
     for _, f := range ve.Fields {
-        // f.Field   → "Email"
-        // f.Tag     → "required" | "cpf" | "min"
-        // f.Param   → "8" for min=8 (empty when no param)
-        // f.Message → "The field 'Email' is required"
+        // f.Field       → "email" when the field is tagged `json:"email"`, else "Email"
+        // f.StructField → "Email" — the Go field name, always
+        // f.Tag         → "required" | "cpf" | "min"
+        // f.Param       → "8" for min=8 (empty when no param)
+        // f.Message     → "The field 'email' is required"
     }
 }
 ```
 
-`Field`, `Tag`, and `Param` give the frontend everything it needs to translate the error (e.g. `{field: "email", rule: "required"}`) — no string parsing. `Message` is a sane fallback for logs.
+`Field` is the name the field is known by outside the process: the `json` tag name when the struct field has one (first comma-separated part), falling back to the Go name when the tag is absent, empty or `-`. `StructField` is always the Go name. `Message` is built from `Field`.
+
+Nested and sliced fields keep their shape — a `dive` failure on a slice tagged `json:"marketplaces"` reports `marketplaces[0]`, and a nested struct reports the leaf field name.
+
+`Field`, `Tag`, and `Param` give the frontend everything it needs to translate the error (e.g. `{field: "email", rule: "required"}`) — no string parsing, and no name translation at the transport layer. `StructField` is there for logs and for code that reflects back on the Go struct. `Message` is a sane fallback for logs.
 
 ### 4. Map to apperr (optional)
 
@@ -139,8 +144,8 @@ Combined with [`apperr/httpmap`](https://github.com/diegoclair/apperr/tree/main/
     "code": "VALIDATION_ERROR",
     "meta": {
         "fields": [
-            {"field": "Email", "tag": "required", "message": "The field 'Email' is required"},
-            {"field": "CPF",   "tag": "cpf",      "message": "The field 'CPF' should be a valid cpf"}
+            {"field": "Email", "struct_field": "Email", "tag": "required", "message": "The field 'Email' is required"},
+            {"field": "CPF",   "struct_field": "CPF",   "tag": "cpf",      "message": "The field 'CPF' should be a valid cpf"}
         ]
     }
 }
@@ -170,7 +175,7 @@ v.RegisterValidation("strong_password", func(fl validator.FieldLevel) bool {
 appvalidator (core — zero apperr dependency)
 ├── Validator           interface
 ├── ValidationError     structured error (Fields []FieldError)
-├── FieldError          {Field, Tag, Param, Message}
+├── FieldError          {Field, StructField, Tag, Param, Message}
 └── New()               constructor with custom tags pre-registered
 
 apperrmap/ (sub-package — opt-in apperr bridge)

@@ -228,3 +228,172 @@ func TestValidateStruct_CustomTag_Valid(t *testing.T) {
 
 	assert.NoError(t, v.ValidateStruct(context.Background(), data))
 }
+
+func TestValidateStruct_WithoutJSONTag_FieldEqualsStructField(t *testing.T) {
+	v, err := New()
+	require.NoError(t, err)
+
+	data := struct {
+		Name string `validate:"required"`
+	}{}
+
+	err = v.ValidateStruct(context.Background(), data)
+	require.Error(t, err)
+
+	var ve *ValidationError
+	require.True(t, errors.As(err, &ve))
+	require.Len(t, ve.Fields, 1)
+
+	assert.Equal(t, "Name", ve.Fields[0].Field)
+	assert.Equal(t, "Name", ve.Fields[0].StructField)
+	assert.Equal(t, "The field 'Name' is required", ve.Fields[0].Message)
+}
+
+func TestValidateStruct_WithJSONTag(t *testing.T) {
+	v, err := New()
+	require.NoError(t, err)
+
+	data := struct {
+		EmailAddress string `json:"email_address" validate:"required,email"`
+	}{EmailAddress: "not-email"}
+
+	err = v.ValidateStruct(context.Background(), data)
+	require.Error(t, err)
+
+	var ve *ValidationError
+	require.True(t, errors.As(err, &ve))
+	require.Len(t, ve.Fields, 1)
+
+	assert.Equal(t, "email_address", ve.Fields[0].Field)
+	assert.Equal(t, "EmailAddress", ve.Fields[0].StructField)
+	assert.Equal(t, "The field 'email_address' should be a valid email", ve.Fields[0].Message)
+	assert.Contains(t, err.Error(), "email_address")
+}
+
+func TestValidateStruct_JSONTagVariants(t *testing.T) {
+	v, err := New()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name            string
+		dataSet         any
+		wantField       string
+		wantStructField string
+	}{
+		{
+			name: "skipped tag falls back to the go name",
+			dataSet: struct {
+				Secret string `json:"-" validate:"required"`
+			}{},
+			wantField:       "Secret",
+			wantStructField: "Secret",
+		},
+		{
+			name: "empty name with options falls back to the go name",
+			dataSet: struct {
+				Nickname string `json:",omitempty" validate:"required"`
+			}{},
+			wantField:       "Nickname",
+			wantStructField: "Nickname",
+		},
+		{
+			name: "options are stripped from the name",
+			dataSet: struct {
+				Nickname string `json:"nickname,omitempty" validate:"required"`
+			}{},
+			wantField:       "nickname",
+			wantStructField: "Nickname",
+		},
+		{
+			name: "dash inside a longer name is not a skip",
+			dataSet: struct {
+				Nickname string `json:"nick-name" validate:"required"`
+			}{},
+			wantField:       "nick-name",
+			wantStructField: "Nickname",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := v.ValidateStruct(context.Background(), tt.dataSet)
+			require.Error(t, err)
+
+			var ve *ValidationError
+			require.True(t, errors.As(err, &ve))
+			require.Len(t, ve.Fields, 1)
+
+			assert.Equal(t, tt.wantField, ve.Fields[0].Field)
+			assert.Equal(t, tt.wantStructField, ve.Fields[0].StructField)
+			assert.Equal(t, "The field '"+tt.wantField+"' is required", ve.Fields[0].Message)
+		})
+	}
+}
+
+func TestValidateStruct_SliceDiveKeepsIndex(t *testing.T) {
+	v, err := New()
+	require.NoError(t, err)
+
+	data := struct {
+		Marketplaces []string `json:"marketplaces" validate:"required,dive,required"`
+	}{Marketplaces: []string{""}}
+
+	err = v.ValidateStruct(context.Background(), data)
+	require.Error(t, err)
+
+	var ve *ValidationError
+	require.True(t, errors.As(err, &ve))
+	require.Len(t, ve.Fields, 1)
+
+	assert.Equal(t, "marketplaces[0]", ve.Fields[0].Field)
+	assert.Equal(t, "Marketplaces[0]", ve.Fields[0].StructField)
+	assert.Equal(t, "The field 'marketplaces[0]' is required", ve.Fields[0].Message)
+}
+
+type nestedChild struct {
+	FullName string `json:"full_name" validate:"required"`
+}
+
+func TestValidateStruct_NestedStruct(t *testing.T) {
+	v, err := New()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name            string
+		dataSet         any
+		wantField       string
+		wantStructField string
+	}{
+		{
+			name: "leaf failure reports the leaf names",
+			dataSet: struct {
+				Child nestedChild `json:"child"`
+			}{},
+			wantField:       "full_name",
+			wantStructField: "FullName",
+		},
+		{
+			name: "parent failure reports the parent names",
+			dataSet: struct {
+				Child *nestedChild `json:"child" validate:"required"`
+			}{},
+			wantField:       "child",
+			wantStructField: "Child",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := v.ValidateStruct(context.Background(), tt.dataSet)
+			require.Error(t, err)
+
+			var ve *ValidationError
+			require.True(t, errors.As(err, &ve))
+			require.Len(t, ve.Fields, 1)
+
+			assert.Equal(t, tt.wantField, ve.Fields[0].Field)
+			assert.Equal(t, tt.wantStructField, ve.Fields[0].StructField)
+			assert.Equal(t, "The field '"+tt.wantField+"' is required", ve.Fields[0].Message)
+		})
+	}
+}
