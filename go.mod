@@ -3,7 +3,7 @@ module github.com/diegoclair/appvalidator
 go 1.27.0
 
 require (
-	github.com/diegoclair/apperr v0.1.2
+	github.com/diegoclair/apperr v0.2.0
 	github.com/go-playground/validator/v10 v10.30.2
 	github.com/klassmann/cpfcnpj v0.0.0-20200907140233-a595c5fd8de1
 	github.com/stretchr/testify v1.11.1
