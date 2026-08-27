@@ -62,7 +62,7 @@ func New() (Validator, error) {
 }
 
 func jsonTagName(fld reflect.StructField) string {
-	name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+	name, _, _ := strings.Cut(fld.Tag.Get("json"), ",")
 	// "-" must fall back to the Go name rather than hide the field from the caller.
 	if name == "-" {
 		return ""
@@ -76,8 +76,7 @@ func (v *validatorImpl) ValidateStruct(ctx context.Context, dataSet any) error {
 		return nil
 	}
 
-	var invalid *validator.InvalidValidationError
-	if errors.As(err, &invalid) {
+	if _, ok := errors.AsType[*validator.InvalidValidationError](err); ok {
 		return fmt.Errorf("appvalidator: invalid argument passed to ValidateStruct: %w", err)
 	}
 
